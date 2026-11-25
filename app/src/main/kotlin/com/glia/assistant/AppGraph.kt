@@ -36,16 +36,27 @@ class AppGraph(private val context: Context) {
     @Volatile
     private var engine: LlmEngine = OfflinePersonaEngine()
 
+    @Volatile
+    var lastEngineError: String? = null
+        private set
+
     val currentEngine: LlmEngine get() = engine
 
     fun modelStatus(): ModelStatus {
         val file = ModelStore.activeModel(context)
         return if (file != null) {
+            val size = "%.0f".format(file.length() / (1024.0 * 1024.0))
+            val detail = when {
+                engine.isReady ->
+                    "GGUF local com $size MB · mmap + kernels NEON · contexto ${modelContext()}"
+                lastEngineError != null ->
+                    "Arquivo de $size MB presente, mas o motor recusou: $lastEngineError"
+                else -> "Arquivo de $size MB · carregando…"
+            }
             ModelStatus(
                 installed = true,
-                title = "Ternary Bonsai 2 · 2B",
-                detail = "GGUF local com ${"%.0f".format(file.length() / (1024.0 * 1024.0))} MB · " +
-                    "mmap + kernels NEON · contexto ${modelContext()}",
+                title = "Modelo local · $size MB",
+                detail = detail,
                 path = file.absolutePath,
             )
         } else {
@@ -70,6 +81,7 @@ class AppGraph(private val context: Context) {
         }
         val file: File? = ModelStore.activeModel(context) ?: ModelStore.ensureAssetModel(context)
         if (file == null) {
+            lastEngineError = "nenhum arquivo .gguf em ${ModelStore.modelsDir(context).absolutePath}"
             engine = OfflinePersonaEngine()
             return@withContext engine
         }
@@ -82,7 +94,11 @@ class AppGraph(private val context: Context) {
             requestedContext = if (MemoryGovernor.availableRamMb(context) < 1400) 512 else 1024,
             threads = 4,
         )
-        engine = result.getOrElse { OfflinePersonaEngine() }
+        engine = result.getOrElse {
+            lastEngineError = it.message
+            OfflinePersonaEngine()
+        }
+        if (result.isSuccess) lastEngineError = null
         engine
     }
 
@@ -100,6 +116,7 @@ class AppGraph(private val context: Context) {
         return buildString {
             append("modelo: ").append(if (model.installed) "instalado" else "ausente").append('\n')
             append("motor: ").append(currentEngine.label).append('\n')
+            lastEngineError?.let { append("erro do motor: ").append(it).append('\n') }
             append("RAM livre: ").append(ram).append(" MB")
             if (rss > 0) append(" · RSS ").append(rss).append(" MB")
             append('\n')

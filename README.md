@@ -13,6 +13,35 @@ APK assinado (arm64, Android 11+), publicado nas releases:
 
 **https://github.com/joaohenriqueribeironunes-ops/Glia-V10/releases/latest**
 
+### Assets do release `v1.0`
+
+| Asset | Tamanho | Licença | Para quê |
+|---|---|---|---|
+| `app-release.apk` | 25 MB | — | instalar o app (arm64, Android 11+) |
+| `Ternary-Bonsai-2-2B-PTQ1_0.gguf` | 409 MB | Apache 2.0 (PrismML) | pesos do modelo alvo do Glia |
+| `vosk-model-small-pt-0.3.zip` | 31 MB | Apache 2.0 (Alpha Cephei) | wake word + ASR offline em pt-BR |
+
+Integridade do GGUF (bate com o `SHA256SUMS` oficial do Hugging Face):
+
+```
+36061ad406df8a4903a6db005be350c50fabfaf717f9ef0acf4b76adcd9929fa  Ternary-Bonsai-2-2B-PTQ1_0.gguf
+6e1ce909032e1afa7a88e68a3d628ecafff302bdf195befab308826c395e93b7  vosk-model-small-pt-0.3.zip
+```
+
+> **Compatibilidade do motor nesta versão (importante).**
+> O núcleo em `ai/src/main/cpp` executa GGUF de arquitetura **LLaMA/Mistral**
+> (atenção completa, GQA, RoPE, SwiGLU). O **Ternary Bonsai 2 2B** é derivado do
+> Qwen3.5-2B com **atenção híbrida** (18 camadas de atenção linear + 6 completas),
+> rotação de Hadamard dobrada nos pesos e escala ternária g128. Por isso o GGUF do
+> Bonsai **ainda não é carregado** por esta build: o app mostra o erro do motor em
+> Ajustes → Modelo e cai no modo essencial (hora, agenda, estado do aparelho e
+> ações continuam funcionando). O arquivo está anexado ao release como referência
+> para a próxima versão do núcleo.
+>
+> Para conversar de verdade com esta build hoje, use um GGUF de arquitetura
+> LLaMA/Mistral (por exemplo Llama 3.2 1B/3B Instruct, Q4_0/Q8_0) e renomeie para
+> `.gguf` na pasta de modelos.
+
 ---
 
 ## 1. Arquitetura
@@ -96,9 +125,10 @@ ui/                  design system + telas
 
 ---
 
-## 2. Modelos offline (não incluídos no repositório)
+## 2. Modelos offline (assets do release, não versionados)
 
-Os pesos têm licença própria e não são versionados aqui.
+Os pesos têm licença própria e ficam anexados ao release do GitHub — nunca no
+histórico do repositório. Baixe pelo link da seção **Download**.
 
 ### LLM — Ternary Bonsai 2 2B (GGUF)
 
