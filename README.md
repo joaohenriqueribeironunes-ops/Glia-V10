@@ -11,6 +11,10 @@ Nenhum dado sai do aparelho: não há permissão de internet declarada no app.
 
 APK assinado (arm64, Android 11+), publicado nas releases:
 
+Página de download (botão direto + instruções):
+**https://glia-download-vl3cdf-preview.freebuff.site**
+
+Releases no GitHub:
 **https://github.com/joaohenriqueribeironunes-ops/Glia-V10/releases/latest**
 
 ### Assets do release `v1.1`
