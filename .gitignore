@@ -18,3 +18,5 @@ ai/.cxx/
 site/public/parts/
 .DS_Store
 .artifacts/
+.build/
+third_party/

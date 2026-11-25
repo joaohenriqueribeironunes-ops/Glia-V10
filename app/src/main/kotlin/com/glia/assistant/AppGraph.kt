@@ -44,20 +44,23 @@ class AppGraph(private val context: Context) {
 
     fun modelStatus(): ModelStatus {
         val file = ModelStore.activeModel(context)
-        return if (file != null) {
-            val size = "%.0f".format(file.length() / (1024.0 * 1024.0))
+        val bundled = if (file == null) ModelStore.bundledSize(context) else 0L
+        val bytes = file?.length() ?: bundled
+        return if (bytes > 0L) {
+            val size = "%.0f".format(bytes / (1024.0 * 1024.0))
+            val origin = if (file == null) "embutido no APK · Q2_0" else "GGUF local"
             val detail = when {
                 engine.isReady ->
-                    "GGUF local com $size MB · mmap + kernels NEON · contexto ${modelContext()}"
+                    "$origin com $size MB · llama.cpp · contexto ${modelContext()}"
                 lastEngineError != null ->
-                    "Arquivo de $size MB presente, mas o motor recusou: $lastEngineError"
-                else -> "Arquivo de $size MB · carregando…"
+                    "$origin com $size MB, mas o motor recusou: $lastEngineError"
+                else -> "$origin com $size MB · carregando…"
             }
             ModelStatus(
                 installed = true,
-                title = "Modelo local · $size MB",
+                title = "Bonsai 2B · $size MB",
                 detail = detail,
-                path = file.absolutePath,
+                path = file?.absolutePath ?: "assets/${ModelStore.ASSET_MODEL}",
             )
         } else {
             ModelStatus(
@@ -79,7 +82,7 @@ class AppGraph(private val context: Context) {
             engine = existing
             return@withContext existing
         }
-        val file: File? = ModelStore.activeModel(context) ?: ModelStore.ensureAssetModel(context)
+        val file: File? = ModelStore.activeModel(context) ?: ModelStore.bundledModel(context)
         if (file == null) {
             lastEngineError = "nenhum arquivo .gguf em ${ModelStore.modelsDir(context).absolutePath}"
             engine = OfflinePersonaEngine()
@@ -91,7 +94,11 @@ class AppGraph(private val context: Context) {
         }
         val result = GliaEngine.obtain(
             modelFile = file,
-            requestedContext = if (MemoryGovernor.availableRamMb(context) < 1400) 512 else 1024,
+            requestedContext = when {
+                MemoryGovernor.availableRamMb(context) < 1400 -> 512
+                MemoryGovernor.availableRamMb(context) < 3000 -> 1024
+                else -> 2048
+            },
             threads = 4,
         )
         engine = result.getOrElse {
@@ -128,10 +135,11 @@ class AppGraph(private val context: Context) {
     }
 
     fun modelInstructions(): String =
-        "1. Baixe o GGUF do Bonsai 2B (ternário/llama.cpp).\n" +
-            "2. Conecte o Redmi por USB e rode:\n" +
+        "O app já vem com o Ternary Bonsai 2 2B (Q2_0) embutido no APK e roda " +
+            "offline via llama.cpp.\n" +
+            "Para usar outro GGUF, conecte o aparelho por USB e rode:\n" +
             "   adb push modelo.gguf /sdcard/Android/data/com.glia.assistant/files/models/\n" +
-            "3. Em Ajustes → Modelo, toque em Recarregar.\n" +
+            "e toque em Recarregar.\n" +
             "Para a voz offline, instale o Vosk pt-BR em " +
             "${context.filesDir}/vosk-model (adb push da pasta do modelo)."
 }

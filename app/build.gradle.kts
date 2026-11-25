@@ -54,6 +54,11 @@ android {
         jvmTarget = "17"
     }
 
+    androidResources {
+        // O GGUF precisa ficar sem compressão para ser mapeado direto do APK.
+        noCompress += "gguf"
+    }
+
     packaging {
         resources.excludes += setOf(
             "/META-INF/{AL2.0,LGPL2.1}",

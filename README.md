@@ -2,8 +2,8 @@
 
 Assistente pessoal **100% offline** para Android, feito para o Redmi Note 11S
 (Helio G96, Mali-G57 MC2, 6 GB, HyperOS). Kotlin + Jetpack Compose, IA local
-(GGUF executado por um núcleo C++ próprio via JNI), voz offline e automação do
-sistema por `AccessibilityService`.
+(Ternary Bonsai 2 2B em GGUF executado pelo **llama.cpp** via JNI, com o modelo
+embutido no APK), voz offline e automação do sistema por `AccessibilityService`.
 
 Nenhum dado sai do aparelho: não há permissão de internet declarada no app.
 
@@ -13,34 +13,36 @@ APK assinado (arm64, Android 11+), publicado nas releases:
 
 **https://github.com/joaohenriqueribeironunes-ops/Glia-V10/releases/latest**
 
-### Assets do release `v1.0`
+### Assets do release `v1.1`
 
 | Asset | Tamanho | Licença | Para quê |
 |---|---|---|---|
-| `app-release.apk` | 25 MB | — | instalar o app (arm64, Android 11+) |
-| `Ternary-Bonsai-2-2B-PTQ1_0.gguf` | 409 MB | Apache 2.0 (PrismML) | pesos do modelo alvo do Glia |
+| `app-release.apk` | 551 MB | — | app **com o modelo dentro** (arm64, Android 11+) |
+| `Ternary-Bonsai-2-2B-Q2_0.gguf` | 547 MB | Apache 2.0 (PrismML) | mesmo GGUF do APK, avulso para inspeção |
 | `vosk-model-small-pt-0.3.zip` | 31 MB | Apache 2.0 (Alpha Cephei) | wake word + ASR offline em pt-BR |
 
-Integridade do GGUF (bate com o `SHA256SUMS` oficial do Hugging Face):
+O GGUF vai **dentro do APK** em `assets/model/glia.gguf`, gravado sem compressão
+(`noCompress += "gguf"`). O llama.cpp recebe o caminho `/proc/self/fd/<fd>` de um
+`AssetFileDescriptor` aberto, então o próprio APK é mapeado com `mmap` — nada de
+copiar 550 MB para o armazenamento na primeira execução.
+
+Integridade do modelo (bate com o `SHA256SUMS` oficial do Hugging Face):
 
 ```
-36061ad406df8a4903a6db005be350c50fabfaf717f9ef0acf4b76adcd9929fa  Ternary-Bonsai-2-2B-PTQ1_0.gguf
+c2893fa6f951daee8b7263d5f49b455e57989ef56417a22125b03566dc560650  Ternary-Bonsai-2-2B-Q2_0.gguf
 6e1ce909032e1afa7a88e68a3d628ecafff302bdf195befab308826c395e93b7  vosk-model-small-pt-0.3.zip
 ```
 
-> **Compatibilidade do motor nesta versão (importante).**
-> O núcleo em `ai/src/main/cpp` executa GGUF de arquitetura **LLaMA/Mistral**
-> (atenção completa, GQA, RoPE, SwiGLU). O **Ternary Bonsai 2 2B** é derivado do
-> Qwen3.5-2B com **atenção híbrida** (18 camadas de atenção linear + 6 completas),
-> rotação de Hadamard dobrada nos pesos e escala ternária g128. Por isso o GGUF do
-> Bonsai **ainda não é carregado** por esta build: o app mostra o erro do motor em
-> Ajustes → Modelo e cai no modo essencial (hora, agenda, estado do aparelho e
-> ações continuam funcionando). O arquivo está anexado ao release como referência
-> para a próxima versão do núcleo.
->
-> Para conversar de verdade com esta build hoje, use um GGUF de arquitetura
-> LLaMA/Mistral (por exemplo Llama 3.2 1B/3B Instruct, Q4_0/Q8_0) e renomeie para
-> `.gguf` na pasta de modelos.
+> **Por que Q2_0 e não PTQ1_0?** O PTQ1_0 (409 MB) usa o tipo GGML **143**, que só
+existe no fork PrismML (PR #29672 ainda aberto). O Q2_0 (547 MB,
+`general.file_type = 41`, 151 tensores `Q2_0` + 169 `F32`) carrega no llama.cpp
+upstream: `arch = qwen35` está implementado em `src/models/qwen35.cpp` (atenção
+híbrida — 18 camadas gated-delta-net + 6 completas a cada 4) e o carregador trata
+`prism.hadamard.version = 2` (rotação de Hadamard com sinais explícitos). São os
+mesmos pesos, com um bit a mais por valor.
+
+Se você colocar outro `.gguf` na pasta de modelos (`adb push`), ele tem
+prioridade sobre o embutido.
 
 ---
 
@@ -56,13 +58,14 @@ app/                 orquestração, serviços do sistema, tile, onboarding, Mai
  └─ BootReceiver      retomada da escuta após reboot
 
 ai/                  motor de linguagem
- ├─ cpp/glia_core.cpp   GGUF via mmap, kernels NEON (TQ2_0/Q8_0/Q4_0/F16/F32),
- │                      forward LLaMA/Mistral com GQA + RoPE + KV cache fp32,
- │                      tokenizer SPM (match guloso + byte fallback), sampling
- ├─ cpp/glia_jni.cpp    ponte JNI
+ ├─ cpp/glia_bridge.cpp ponte JNI sobre llama.cpp (modelo, contexto, batch_ext,
+ │                      sampler, tokenize/piece, memória recorrente)
+ ├─ cpp/llama/          cabeçalhos do llama.cpp (MIT) usados no build
+ ├─ jniLibs/arm64-v8a/  libllama.so + libggml*.so compiladas para o Redmi
+ ├─ cpp/glia_core.cpp   motor antigo (só LLaMA/Mistral), fora do build — histórico
  ├─ GliaEngine          carregamento, contexto, streaming de tokens
- ├─ MemoryGovernor      contexto adaptativo (1024 → 512 → 256) e liberação
- ├─ ModelStore          descoberta do GGUF e modelo ativo
+ ├─ MemoryGovernor      contexto adaptativo (2048 → 1024 → 512 → 256) e liberação
+ ├─ ModelStore          GGUF avulso ou embutido via /proc/self/fd, modelo ativo
  ├─ prompt/GliaPrompt   persona + ChatML + lista de ferramentas
  ├─ tools/              ToolSpec, parser de JSON, validador de schema
  └─ OfflinePersonaEngine  fallback quando não há modelo instalado
@@ -132,18 +135,24 @@ histórico do repositório. Baixe pelo link da seção **Download**.
 
 ### LLM — Ternary Bonsai 2 2B (GGUF)
 
+O APK de release **já traz** `assets/model/glia.gguf` (Q2_0, 547 MB). Não é
+preciso instalar nada à mão.
+
+Para usar outro modelo, sem regerar o APK:
+
 ```bash
-adb push bonsai-2b-tq2_0.gguf \
+adb push outro-modelo.gguf \
   /sdcard/Android/data/com.glia.assistant/files/models/
 ```
 
-O app também aceita `filesDir/models` (acessível só com root/run-as) e
-`assets/model/glia.gguf`, se você preferir embutir no APK.
+O app também aceita `filesDir/models` (via `run-as`/root). Um GGUF na pasta de
+modelos tem prioridade sobre o embutido; `ModelStore.activeModel` escolhe o
+maior arquivo quando não há um marcado como ativo.
 
-Formatos aceitos pelo núcleo: `TQ2_0` (ternário, blocos de 256 com escala fp16,
-66 bytes), `Q8_0`, `Q4_0`, `F16`, `F32`. Se o seu arquivo ternário usar outro
-layout, o carregamento falha com mensagem explícita — converta para `Q8_0` com
-`llama-quantize` e o app roda normalmente.
+Quem carrega o arquivo é o **llama.cpp** (upstream), então valem os formatos e
+arquiteturas que ele suporta: `qwen35` (Bonsai), LLaMA/Mistral/Qwen, `Q2_0`,
+`TQ2_0`, `Q4_0`, `Q5_K`, `Q8_0`, `F16`, `F32`. Se o arquivo não carregar, o erro
+do llama.cpp aparece em Ajustes → Modelo (`lastEngineError`).
 
 ### Voz — Vosk small pt-BR (~50 MB, Apache 2.0)
 
@@ -181,15 +190,29 @@ O onboarding explica cada uma e permite pular. Nada de internet é declarado.
 
 ## 4. Build
 
-Requisitos: JDK 17, Android SDK 35, build-tools 35, NDK 27.0.12077973, CMake 3.22.1.
+Requisitos: JDK 17, Android SDK 35, build-tools 35, NDK 27.0.12077973,
+CMake 3.22.1+ (o build do llama.cpp usa o 3.31.6 do SDK).
 
 ```bash
-./gradlew :app:assembleDebug        # APK em app/build/outputs/apk/debug/
-./gradlew :app:installDebug         # com o Redmi conectado por USB
+# 1. llama.cpp para arm64 (clona third_party/, gera ai/src/main/jniLibs)
+./scripts/build-llama-android.sh
+
+# 2. modelo embutido (não versionado; baixe do release ou do Hugging Face)
+curl -L -o app/src/main/assets/model/glia.gguf \
+  https://huggingface.co/prism-ml/Ternary-Bonsai-2-2B-gguf/resolve/main/Ternary-Bonsai-2-2B-Q2_0.gguf
+
+# 3. APK
+./gradlew :app:assembleDebug        # app/build/outputs/apk/debug/
+./gradlew :app:assembleRelease      # ~577 MB com o modelo
+./gradlew :app:installRelease       # com o Redmi conectado por USB
 ```
 
-ABIs: `arm64-v8a` (aparelho) e `x86_64` (emulador). O núcleo nativo é compilado
-pelo CMake em `ai/src/main/cpp/CMakeLists.txt`.
+ABIs: apenas `arm64-v8a` (o Redmi). O llama.cpp é compilado à parte porque o
+módulo `ai` linka contra as `.so` prontas (`ai/src/main/jniLibs/arm64-v8a/`);
+`ai/src/main/cpp/CMakeLists.txt` compila só a ponte JNI.
+
+Sem o GGUF em `app/src/main/assets/model/`, o APK compila no modo essencial; sem
+as `.so`, o link falha — rode o script antes.
 
 Instalação manual:
 

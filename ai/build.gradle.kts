@@ -20,7 +20,8 @@ android {
             }
         }
         ndk {
-            abiFilters += listOf("arm64-v8a", "x86_64")
+            // llama.cpp é pré-compilado apenas para o Redmi (arm64-v8a).
+            abiFilters += "arm64-v8a"
         }
     }
 
