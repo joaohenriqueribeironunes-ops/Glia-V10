@@ -1,0 +1,8 @@
+* text=auto
+
+# Assets de modelos: byte-a-byte, sem conversão de fim de linha.
+voice/src/main/assets/** -text
+app/src/main/assets/** -text
+voice/libs/*.aar binary
+*.gguf binary
+*.onnx binary
