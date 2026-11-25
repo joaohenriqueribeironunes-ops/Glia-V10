@@ -9,4 +9,12 @@
         <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
         <item name="android:windowDrawsSystemBarBackgrounds">true</item>
     </style>
+
+    <!-- Painel de voz sobre a tela bloqueada: janela translúcida, sem barra. -->
+    <style name="Theme.Glia.Voice" parent="Theme.Glia">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:backgroundDimEnabled">true</item>
+        <item name="android:windowNoTitle">true</item>
+    </style>
 </resources>

@@ -25,4 +25,6 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     // Reconhecimento offline pt-BR + detecção de palavra-chave por gramática.
     implementation("com.alphacephei:vosk-android:0.3.75")
+    // Voz neural offline (Piper/VITS) — AAR oficial do sherpa-onnx, só arm64.
+    implementation(files("libs/sherpa-onnx-2.0.3-arm64.aar"))
 }

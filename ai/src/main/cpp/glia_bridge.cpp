@@ -87,6 +87,7 @@ Java_com_glia_ai_engine_GliaNative_nativeLoadModel(
     llama_model_params mp = llama_model_default_params();
     mp.n_gpu_layers = 0;       // CPU pura: 2B Q2 roda com folga em 4 threads
     mp.use_extra_bufts = true; // repacking de pesos ternários no CPU
+    mp.load_mode = LLAMA_LOAD_MODE_MMAP; // os pesos vêm mapeados do próprio APK
 
     h->model = llama_model_load_from_file(model_path.c_str(), mp);
     if (h->model == nullptr) {
@@ -111,6 +112,9 @@ Java_com_glia_ai_engine_GliaNative_nativeLoadModel(
     // reserva n_batch × vocab × 4 B (~500 MB) só para logits.
     cp.n_outputs_max = 32;
     cp.n_seq_max = 1;
+    // KV em fp16: metade da RAM do cache sem perda perceptível na conversa.
+    cp.type_k = GGML_TYPE_F16;
+    cp.type_v = GGML_TYPE_F16;
     cp.n_threads = std::max(1, static_cast<int>(n_threads));
     cp.n_threads_batch = cp.n_threads;
     cp.no_perf = true;

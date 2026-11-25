@@ -1,6 +1,8 @@
 -keep class com.glia.ai.engine.GliaNative { *; }
 -keepclasseswithmembernames class * { native <methods>; }
 -keep class org.vosk.** { *; }
+-keep class com.k2fsa.sherpa.onnx.** { *; }
+-dontwarn com.k2fsa.sherpa.onnx.**
 -keep class com.sun.jna.** { *; }
 -keep class * extends android.app.Service { *; }
 -keep class com.glia.devicecontrol.GliaAccessibilityService { *; }

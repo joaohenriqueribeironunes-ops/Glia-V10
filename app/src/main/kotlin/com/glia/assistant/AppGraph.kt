@@ -88,26 +88,35 @@ class AppGraph(private val context: Context) {
             engine = OfflinePersonaEngine()
             return@withContext engine
         }
-        if (MemoryGovernor.isLowMemory(context)) {
-            engine = OfflinePersonaEngine()
-            return@withContext engine
+        // Ordem de tentativa: o que a RAM sugere, caindo até 512 tokens.
+        // Em aparelho apertado ainda vale tentar com contexto curto em vez de
+        // cair direto no modo essencial.
+        val preferred = when {
+            MemoryGovernor.availableRamMb(context) < 1400 -> 512
+            MemoryGovernor.availableRamMb(context) < 3000 -> 1024
+            else -> 2048
         }
-        val result = GliaEngine.obtain(
-            modelFile = file,
-            requestedContext = when {
-                MemoryGovernor.availableRamMb(context) < 1400 -> 512
-                MemoryGovernor.availableRamMb(context) < 3000 -> 1024
-                else -> 2048
-            },
-            threads = 4,
-        )
-        engine = result.getOrElse {
-            lastEngineError = it.message
-            OfflinePersonaEngine()
+        val ladder = linkedSetOf(preferred, 1024, 512).filter { it <= preferred }
+        val threads = recommendThreads()
+        var lastError: String? = null
+        for (candidate in ladder) {
+            val result = GliaEngine.obtain(modelFile = file, requestedContext = candidate, threads = threads)
+            if (result.isSuccess) {
+                engine = result.getOrThrow()
+                lastEngineError = null
+                return@withContext engine
+            }
+            lastError = result.exceptionOrNull()?.message
+            android.util.Log.w("AppGraph", "carga com ctx=$candidate falhou: $lastError")
         }
-        if (result.isSuccess) lastEngineError = null
+        lastEngineError = lastError
+        engine = OfflinePersonaEngine()
         engine
     }
+
+    /** 4 threads no Helio G96 (2 big + 6 little): usa metade dos núcleos, no máximo 4. */
+    private fun recommendThreads(): Int =
+        (Runtime.getRuntime().availableProcessors() / 2).coerceIn(2, 4)
 
     fun releaseEngine() {
         if (engine is GliaEngine) GliaEngine.release()
@@ -127,10 +136,14 @@ class AppGraph(private val context: Context) {
             append("RAM livre: ").append(ram).append(" MB")
             if (rss > 0) append(" · RSS ").append(rss).append(" MB")
             append('\n')
+            append("threads: ").append(recommendThreads())
+            append('\n')
             append("escuta: ").append(wake)
             append(" · acessibilidade: ").append(if (accessibility) "ativa" else "inativa")
             append('\n')
             append("vosk: ").append(if (voice.isModelInstalled()) "pronto" else "sem modelo pt-BR")
+            append('\n')
+            append("voz: ").append(tts.engineLabel)
         }
     }
 
@@ -140,6 +153,8 @@ class AppGraph(private val context: Context) {
             "Para usar outro GGUF, conecte o aparelho por USB e rode:\n" +
             "   adb push modelo.gguf /sdcard/Android/data/com.glia.assistant/files/models/\n" +
             "e toque em Recarregar.\n" +
-            "Para a voz offline, instale o Vosk pt-BR em " +
+            "A voz de resposta é neural (Piper faber pt-BR, int8) e já vem no APK; " +
+            "se ela falhar, o app usa o TTS do aparelho.\n" +
+            "Para reconhecer a fala, instale o Vosk pt-BR em " +
             "${context.filesDir}/vosk-model (adb push da pasta do modelo)."
 }

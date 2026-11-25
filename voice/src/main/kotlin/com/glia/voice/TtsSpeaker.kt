@@ -10,9 +10,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * Fala em pt-BR usando o motor TTS do próprio aparelho (offline, sem rede).
- * Em HyperOS a voz pt-BR vem do Google TTS; se não estiver instalada,
- * caímos para a voz padrão sem travar a conversa.
+ * Fala em pt-BR.
+ *
+ * Preferência: voz neural embutida (Piper faber int8 via sherpa-onnx).
+ * Se o modelo não puder ser carregado, cai para o motor TTS do aparelho,
+ * sem travar a conversa.
  */
 class TtsSpeaker(private val context: Context) {
 
@@ -20,8 +22,37 @@ class TtsSpeaker(private val context: Context) {
     private var ready = false
     private var ptBrAvailable = false
     private val pending = HashMap<String, CompletableDeferred<Unit>>()
+    private val neural = NeuralTts(context)
 
-    suspend fun initialize(): Boolean = withContext(Dispatchers.Main) {
+    val isPtBr: Boolean get() = neural.isReady || ptBrAvailable
+
+    val neuralReady: Boolean get() = neural.isReady
+
+    val engineLabel: String
+        get() = when {
+            neural.isReady -> "neural · ${NeuralTts.DISPLAY_NAME}"
+            neural.lastFailure != null -> "sistema · neural indisponível"
+            else -> "sistema"
+        }
+
+    /** Sobe a voz neural (copia os assets na primeira vez). */
+    suspend fun initialize(): Boolean {
+        if (neural.prepare()) return true
+        return initializeSystem()
+    }
+
+    suspend fun speak(text: String) {
+        if (text.isBlank()) return
+        VoiceBus.setState(VoiceState.SPEAKING)
+        val spoken = runCatching { neural.speak(text) }.getOrElse {
+            android.util.Log.e("TtsSpeaker", "voz neural falhou", it)
+            false
+        }
+        if (!spoken) speakWithSystem(text)
+        if (VoiceBus.state.value == VoiceState.SPEAKING) VoiceBus.reset()
+    }
+
+    private suspend fun initializeSystem(): Boolean = withContext(Dispatchers.Main) {
         if (ready) return@withContext true
         val status = CompletableDeferred<Int>()
         val tts = TextToSpeech(context) { code -> status.complete(code) }
@@ -58,13 +89,9 @@ class TtsSpeaker(private val context: Context) {
         true
     }
 
-    val isPtBr: Boolean get() = ptBrAvailable
-
-    suspend fun speak(text: String) {
-        if (text.isBlank()) return
-        if (!initialize()) return
+    private suspend fun speakWithSystem(text: String) {
+        if (!initializeSystem()) return
         val tts = engine ?: return
-        VoiceBus.setState(VoiceState.SPEAKING)
         val id = UUID.randomUUID().toString()
         val deferred = CompletableDeferred<Unit>()
         pending[id] = deferred
@@ -72,10 +99,10 @@ class TtsSpeaker(private val context: Context) {
             tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, id)
         }
         deferred.await()
-        if (VoiceBus.state.value == VoiceState.SPEAKING) VoiceBus.reset()
     }
 
     fun stop() {
+        neural.stop()
         runCatching { engine?.stop() }
         pending.values.forEach { it.complete(Unit) }
         pending.clear()
@@ -84,6 +111,7 @@ class TtsSpeaker(private val context: Context) {
 
     fun shutdown() {
         stop()
+        neural.shutdown()
         runCatching { engine?.shutdown() }
         engine = null
         ready = false

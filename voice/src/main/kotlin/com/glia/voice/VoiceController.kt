@@ -21,6 +21,11 @@ class VoiceController(private val context: Context) {
 
     fun isModelInstalled(): Boolean = VoskModelLocator.isInstalled(context)
 
+    /** Extrai o modelo de voz embutido (primeira execução), fora da main thread. */
+    fun ensureModel() {
+        runCatching { VoskModelLocator.ensureFromAssets(context) }
+    }
+
     fun enableWake() {
         if (!hasMicPermission()) return
         VoiceBus.wakeEnabled = true

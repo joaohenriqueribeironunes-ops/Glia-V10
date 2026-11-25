@@ -4,12 +4,11 @@ import android.content.Context
 import java.io.File
 
 /**
- * O modelo Vosk pequeno de português (~50 MB, Apache 2.0) não é distribuído
- * neste repositório. Instale com:
+ * Modelo Vosk pequeno de português (Apache 2.0) dentro do APK, em
+ * `assets/vosk-model.zip`: extraído uma única vez para `filesDir/vosk-model`
+ * no primeiro uso, sem nenhuma etapa manual.
  *
- *   adb push vosk-model-small-pt-0.3 <app>/files/vosk-model
- *
- * ou coloque o zip em assets/vosk-model.zip (extraído no primeiro uso).
+ * Também aceita um modelo já instalado em `filesDir/vosk-model` (adb push).
  */
 object VoskModelLocator {
 
@@ -18,10 +17,10 @@ object VoskModelLocator {
 
     fun modelDir(context: Context): File = File(context.filesDir, DIR_NAME)
 
-    fun isInstalled(context: Context): Boolean {
-        val dir = modelDir(context)
-        return File(dir, "conf").exists() || File(dir, "am").exists()
-    }
+    fun isInstalled(context: Context): Boolean = isInstalledAt(modelDir(context))
+
+    private fun isInstalledAt(dir: File): Boolean =
+        File(dir, "conf").exists() || File(dir, "am").exists()
 
     /** Extrai o zip de assets, se existir. Retorna true se o modelo ficou disponível. */
     fun ensureFromAssets(context: Context): Boolean {
@@ -48,7 +47,22 @@ object VoskModelLocator {
                 }
             }
             temp.delete()
-            true
+            flattenSingleDir(target)
+            isInstalledAt(target)
         }.getOrDefault(false)
+    }
+
+    /** O zip oficial traz a pasta `vosk-model-small-pt-0.3/` como raiz. */
+    private fun flattenSingleDir(target: java.io.File) {
+        if (isInstalledAt(target)) return
+        val children = target.listFiles().orEmpty()
+        if (children.size != 1 || !children[0].isDirectory) return
+        val inner = children[0]
+        inner.listFiles().orEmpty().forEach { file ->
+            val dest = java.io.File(target, file.name)
+            if (dest.exists()) dest.deleteRecursively()
+            file.renameTo(dest)
+        }
+        inner.delete()
     }
 }

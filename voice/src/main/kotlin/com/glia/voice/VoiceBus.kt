@@ -28,6 +28,34 @@ object VoiceBus {
     @Volatile
     var wakeEnabled: Boolean = false
 
+    @Volatile
+    private var uiOwner: String? = null
+
+    private var lastClaimAt = 0L
+
+    /** Quem está em tela: esse consumidor tem prioridade sobre os comandos. */
+    fun acquireUi(owner: String) {
+        uiOwner = owner
+    }
+
+    fun releaseUi(owner: String) {
+        if (uiOwner == owner) uiOwner = null
+    }
+
+    /**
+     * Garante que cada comando seja tratado por um único consumidor, mesmo
+     * com a UI principal e o painel sobre a tela bloqueada vivos ao mesmo tempo.
+     */
+    @Synchronized
+    fun claimCommand(requester: String): Boolean {
+        val owner = uiOwner
+        if (owner != null && owner != requester) return false
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (now - lastClaimAt < 700L) return false
+        lastClaimAt = now
+        return true
+    }
+
     fun setState(value: VoiceState) {
         _state.value = value
     }

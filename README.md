@@ -17,13 +17,17 @@ Página de download (botão direto + instruções):
 Releases no GitHub:
 **https://github.com/joaohenriqueribeironunes-ops/Glia-V10/releases/latest**
 
-### Assets do release `v1.1`
+### Assets do release `v1.2`
 
 | Asset | Tamanho | Licença | Para quê |
 |---|---|---|---|
-| `app-release.apk` | 551 MB | — | app **com o modelo dentro** (arm64, Android 11+) |
+| `app-release.apk` | 635 MB | — | app **com LLM, voz neural e reconhecimento dentro** (arm64, Android 11+) |
 | `Ternary-Bonsai-2-2B-Q2_0.gguf` | 547 MB | Apache 2.0 (PrismML) | mesmo GGUF do APK, avulso para inspeção |
-| `vosk-model-small-pt-0.3.zip` | 31 MB | Apache 2.0 (Alpha Cephei) | wake word + ASR offline em pt-BR |
+| `vosk-model-small-pt-0.3.zip` | 31 MB | Apache 2.0 (Alpha Cephei) | mesmo modelo de reconhecimento embutido, avulso |
+
+O APK v1.2 já contém **tudo**: o LLM (547 MB), a voz neural Piper pt-BR (37 MB)
+e o Vosk small pt-BR (31 MB). Nenhum download ou `adb push` é necessário no
+aparelho; a primeira execução só extrai o Vosk e a voz para `filesDir`.
 
 O GGUF vai **dentro do APK** em `assets/model/glia.gguf`, gravado sem compressão
 (`noCompress += "gguf"`). O llama.cpp recebe o caminho `/proc/self/fd/<fd>` de um
@@ -59,6 +63,7 @@ app/                 orquestração, serviços do sistema, tile, onboarding, Mai
  ├─ ConversationEngine  roteador → modelo → tool calling → execução
  ├─ AssistantRouter   consultas/ações determinísticas (antes do LLM)
  ├─ GliaTileService   tile da central de controle
+ ├─ VoiceActivity     painel de voz sobre a tela bloqueada (tile → fala)
  └─ BootReceiver      retomada da escuta após reboot
 
 ai/                  motor de linguagem
@@ -76,8 +81,10 @@ ai/                  motor de linguagem
 
 voice/               voz offline
  ├─ VoskEngine          AudioRecord 16 kHz + Vosk (gramática p/ wake word)
+ ├─ VoskModelLocator    extrai o modelo embutido (assets/vosk-model.zip)
  ├─ WakeWordService     FGS microfone, ciclo escuta → comando → TTS → escuta
- ├─ TtsSpeaker          TTS pt-BR do aparelho, com estado e cancelamento
+ ├─ NeuralTts           voz neural Piper/VITS pt-BR via sherpa-onnx (assets)
+ ├─ TtsSpeaker          tenta a voz neural; cai para o TTS do aparelho
  └─ VoiceBus            estado (idle/ouvindo/pensando/falando) e comandos
 
 calendar/            CalendarProvider
@@ -122,7 +129,10 @@ ui/                  design system + telas
 ### Memória e desempenho
 
 - Pesos **mmapeados** com `MAP_PRIVATE`; nunca são copiados para o heap.
-- KV cache fp32 dimensionado pelo contexto em uso (512–1024 tokens).
+- KV cache **fp16** dimensionado pelo contexto em uso (512–2048 tokens).
+- Carga com degradação progressiva: 2048 → 1024 → 512 tokens; se um contexto
+  não couber, o próximo é tentado antes de cair no modo essencial.
+- Threads = metade dos núcleos, entre 2 e 4 (4 no Helio G96).
 - `onTrimMemory` reduz o contexto e, em pressão crítica, desanexa o modelo;
   o próximo uso recarrega por page faults.
 - Desativação automática da animação/update de UI em segundo plano.
@@ -158,16 +168,29 @@ arquiteturas que ele suporta: `qwen35` (Bonsai), LLaMA/Mistral/Qwen, `Q2_0`,
 `TQ2_0`, `Q4_0`, `Q5_K`, `Q8_0`, `F16`, `F32`. Se o arquivo não carregar, o erro
 do llama.cpp aparece em Ajustes → Modelo (`lastEngineError`).
 
-### Voz — Vosk small pt-BR (~50 MB, Apache 2.0)
+### Voz de resposta — Piper faber int8 (pt-BR, 22 kHz, MIT)
 
-```bash
-adb push vosk-model-small-pt-0.3 /sdcard/Android/data/com.glia.assistant/files/  # renomeie para vosk-model
-```
+O APK traz o modelo VITS quantizado em int8 (`assets/tts/faber`, 37 MB com o
+`espeak-ng-data`) e o runtime **sherpa-onnx 2.0.3** (AAR oficial, só arm64).
+Na primeira fala o `NeuralTts` copia os assets para `filesDir/tts/faber` e passa
+a sintetizar em CPU (2 threads), sem rede e sem depender do TTS do sistema.
+Se a voz neural não puder subir, o `TtsSpeaker` usa o TTS do aparelho como
+reserva — a conversa nunca fica muda.
 
-O `VoskModelLocator` procura `filesDir/vosk-model` e também extrai
-`assets/vosk-model.zip`, se existir. A mesma instância Vosk faz a palavra-chave
-(gramática restrita a `["glia","[unk]"]`, custo baixo) e o reconhecimento do
-comando (vocabulário aberto, VAD por energia).
+### Reconhecimento — Vosk small pt-BR (~50 MB, Apache 2.0)
+
+Já embutido em `assets/vosk-model.zip`; o `VoskModelLocator` extrai uma vez para
+`filesDir/vosk-model` (achata a pasta raiz do zip). A mesma instância Vosk faz a
+palavra-chave (gramática restrita a `["glia","[unk]"]`, custo baixo) e o
+reconhecimento do comando (vocabulário aberto, VAD por energia).
+
+### Central de controle e tela bloqueada
+
+O tile **Glia** abre a `VoiceActivity` (translúcida, `showWhenLocked` +
+`turnScreenOn`), que inicia o `WakeWordService` já em modo comando. O microfone
+roda no foreground service de microfone; a conversa acontece e é falada sem
+desbloquear e sem abrir o app inteiro. Um consumidor único no `VoiceBus` evita
+resposta dupla quando a UI principal e o painel estão vivos ao mesmo tempo.
 
 ---
 

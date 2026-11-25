@@ -40,6 +40,16 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".VoiceActivity"
+            android:configChanges="orientation|screenSize|keyboardHidden|uiMode"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:showWhenLocked="true"
+            android:theme="@style/Theme.Glia.Voice"
+            android:turnScreenOn="true" />
+
         <service
             android:name=".GliaTileService"
             android:exported="true"

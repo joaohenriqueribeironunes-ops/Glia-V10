@@ -21,6 +21,7 @@ import com.glia.ui.model.SettingKey
 import com.glia.voice.VoiceBus
 import com.glia.voice.VoiceState
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -46,6 +47,9 @@ class GliaViewModel(application: Application) : AndroidViewModel(application) {
     private val history = ArrayList<ChatTurn>()
     private var messageId = 0L
     private var sendJob: Job? = null
+
+    /** Identidade deste consumidor no VoiceBus (UI principal x painel bloqueado). */
+    private val consumerId = "vm-" + System.identityHashCode(this)
 
     val actions: GliaActions = GliaActions(
         onDraftChange = { text -> _state.update { it.copy(draft = text) } },
@@ -104,7 +108,9 @@ class GliaViewModel(application: Application) : AndroidViewModel(application) {
             )
         }
         refreshPhase()
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
+            // Modelo de reconhecimento embutido: extrai uma vez, em segundo plano.
+            graph.voice.ensureModel()
             graph.ensureEngine()
             _state.update {
                 it.copy(model = graph.modelStatus(), diagnostic = graph.diagnostics())
@@ -135,6 +141,9 @@ class GliaViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             VoiceBus.commands.collect { command ->
+                // Evita resposta duplicada quando a UI principal e o painel
+                // sobre a tela bloqueada estão vivos ao mesmo tempo.
+                if (!VoiceBus.claimCommand(consumerId)) return@collect
                 val pending = _state.value.pendingConfirmation
                 if (pending != null) {
                     val lower = command.lowercase()
@@ -382,6 +391,11 @@ class GliaViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // ------------------------------------------------------------------ permissões
+
+    /** Marca este consumidor como o dono dos comandos de voz enquanto visível. */
+    fun setForeground(foreground: Boolean) {
+        if (foreground) VoiceBus.acquireUi(consumerId) else VoiceBus.releaseUi(consumerId)
+    }
 
     fun onResume() {
         refresh()
