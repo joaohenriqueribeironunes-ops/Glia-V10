@@ -1,0 +1,11 @@
+-keep class com.glia.ai.engine.GliaNative { *; }
+-keepclasseswithmembernames class * { native <methods>; }
+-keep class org.vosk.** { *; }
+-keep class com.sun.jna.** { *; }
+-keep class * extends android.app.Service { *; }
+-keep class com.glia.devicecontrol.GliaAccessibilityService { *; }
+-keep class com.glia.devicecontrol.GliaNotificationListener { *; }
+-dontwarn org.slf4j.**
+-dontwarn java.awt.**
+-dontwarn javax.swing.**
+-dontwarn com.sun.jna.platform.**

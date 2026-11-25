@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="accessibility_description">A Glia usa este serviço para tocar, rolar e ler a tela dos apps quando você pedir por voz. Nada é enviado para a internet.</string>
+</resources>

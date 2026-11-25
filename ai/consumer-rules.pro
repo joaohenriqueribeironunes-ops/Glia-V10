@@ -1,0 +1,2 @@
+-keep class com.glia.ai.engine.GliaNative { *; }
+-keepclasseswithmembernames class * { native <methods>; }
