@@ -12,8 +12,8 @@ android {
         applicationId = "com.glia.assistant"
         minSdk = 29
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.2"
+        versionCode = 3
+        versionName = "1.3"
         vectorDrawables { useSupportLibrary = true }
         ndk {
             // Redmi Note 11S (arm64) + emulador de desenvolvimento.

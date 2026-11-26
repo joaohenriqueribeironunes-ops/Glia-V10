@@ -13,7 +13,6 @@ app/release
 *.gguf
 ai/.cxx/
 */build/
-*.apk
 *.log
 site/public/parts/
 .DS_Store

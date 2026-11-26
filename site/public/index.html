@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Glia v1.1 — download do APK</title>
-<meta name="description" content="Assistente pessoal offline para Android com o modelo Ternary Bonsai 2 2B embutido. APK v1.1 (arm64, Android 11+).">
+<title>Glia v1.3 — download do APK</title>
+<meta name="description" content="Assistente pessoal offline para Android com o modelo Ternary Bonsai 2 2B embutido. TTS do sistema Android; escuta contínua pelo tile da central de controle. APK v1.3 (arm64, Android 11+).">
 <style>
   :root{
     --bg:#0b1a13; --bg2:#10241a; --card:#13291f; --line:#2a4a38;
@@ -66,31 +66,32 @@
   <header>
     <div class="orb" aria-hidden="true"></div>
     <div>
-      <h1>Glia v1.1</h1>
-      <div class="sub">Assistente pessoal 100% offline · Ternary Bonsai 2 2B embutido</div>
+      <h1>Glia v1.3</h1>
+      <div class="sub">Assistente pessoal 100% offline · Ternary Bonsai 2 2B embutido · TTS do sistema Android</div>
     </div>
   </header>
 
   <section class="card">
-    <a class="cta" href="https://github.com/joaohenriqueribeironunes-ops/Glia-V10/releases/download/v1.1/app-release.apk" rel="noopener">
-      Baixar APK — 551 MB
+    <a class="cta" href="https://github.com/joaohenriqueribeironunes-ops/Glia-V10/releases/download/v1.3/app-release.apk" rel="noopener">
+      Baixar APK — 635 MB
     </a>
     <div class="meta">
       <span class="chip">arm64-v8a</span>
       <span class="chip">Android 11+ (minSdk 29)</span>
-      <span class="chip">v1.1 (versionCode 1)</span>
+      <span class="chip">v1.3 (versionCode 3)</span>
       <span class="chip">assinado com chave de debug</span>
     </div>
-    <div class="hash">SHA-256 · a5450d53b8e6c17c31606368ed941e608517a9b894a7c2531002b82c0e22aa44</div>
+    <div class="hash">SHA-256 · 5698055da1996cec12a063b5ec8db949bd189d8c4e1c19e49a76be8b851f1b98</div>
     <p class="note">O modelo vai dentro do APK (547 MB de pesos Q2_0). Por isso o arquivo é grande:
       o download inicial é único e o app não baixa nada depois — ele não tem permissão de internet.</p>
+    <p class="note">Esta versão retirou a voz neural Piper/Sherpa-onnx e usa o TTS do Android (pt-BR quando disponível). A Glia agora é acionada apenas pelo tile da central de controle: um toque liga a escuta contínua de "Glia" e outro desliga; a escuta fica ativa até você desligar na central de controle novamente. O modelo de IA Ternari Bonsai 2 2B (Q2_0) funciona embutido no APK.</p>
   </section>
 
   <h2>Instalação pelo celular</h2>
   <ol>
     <li>Baixe o APK no aparelho (este botão já aponta direto para o arquivo).</li>
     <li>Abra o arquivo baixado. O Android vai pedir para permitir <em>“instalar apps desconhecidos”</em> para o navegador ou gerenciador de arquivos — permita.</li>
-    <li>Toque em <strong>Instalar</strong> e espere a verificação (o APK tem ~551 MB).</li>
+    <li>Toque em <strong>Instalar</strong> e espere a verificação (o APK tem ~635 MB).</li>
     <li>Abra a Glia e siga o onboarding (microfone é opcional; sem ele o chat continua funcionando).</li>
   </ol>
 
@@ -98,7 +99,7 @@
   <pre><code>adb install -r app-release.apk</code></pre>
   <p>Para conferir a integridade antes de instalar:</p>
   <pre><code>sha256sum app-release.apk
-# deve imprimir a5450d53b8e6c17c31606368ed941e608517a9b894a7c2531002b82c0e22aa44</code></pre>
+# deve imprimir 5698055da1996cec12a063b5ec8db949bd189d8c4e1c19e49a76be8b851f1b98</code></pre>
 
   <h2>Antes de instalar</h2>
   <ul>
@@ -111,9 +112,9 @@
 
   <h2>Outros arquivos</h2>
   <ul>
-    <li><a href="https://github.com/joaohenriqueribeironunes-ops/Glia-V10/releases/download/v1.1/Ternary-Bonsai-2-2B-Q2_0.gguf" rel="noopener">Ternary-Bonsai-2-2B-Q2_0.gguf</a> (547 MB) — o mesmo modelo do APK, para inspeção ou uso com llama.cpp no PC.</li>
-    <li><a href="https://github.com/joaohenriqueribeironunes-ops/Glia-V10/releases/download/v1.1/vosk-model-small-pt-0.3.zip" rel="noopener">vosk-model-small-pt-0.3.zip</a> (31 MB) — reconhecimento de voz offline em pt-BR.</li>
-    <li><a href="https://github.com/joaohenriqueribeironunes-ops/Glia-V10/releases/tag/v1.1" rel="noopener">Notas da release v1.1</a></li>
+    <li><a href="https://github.com/joaohenriqueribeironunes-ops/Glia-V10/releases/download/v1.3/Ternary-Bonsai-2-2B-Q2_0.gguf" rel="noopener">Ternary-Bonsai-2-2B-Q2_0.gguf</a> (547 MB) — o mesmo modelo do APK, para inspeção ou uso com llama.cpp no PC.</li>
+    <li><a href="https://github.com/joaohenriqueribeironunes-ops/Glia-V10/releases/download/v1.3/vosk-model-small-pt-0.3.zip" rel="noopener">vosk-model-small-pt-0.3.zip</a> (31 MB) — reconhecimento de voz offline em pt-BR.</li>
+    <li><a href="https://github.com/joaohenriqueribeironunes-ops/Glia-V10/releases/tag/v1.3" rel="noopener">Notas da release v1.3</a></li>
   </ul>
 
   <footer>
@@ -122,7 +123,8 @@
       <a href="https://github.com/joaohenriqueribeironunes-ops/Glia-V10" rel="noopener">Código no GitHub</a>
       <a href="https://huggingface.co/prism-ml/Ternary-Bonsai-2-2B-gguf" rel="noopener">Modelo (PrismML, Apache 2.0)</a>
     </div>
-    <div style="margin-top:10px">Distribuição pessoal, sem garantias. Modelo sob Apache 2.0; llama.cpp sob MIT.</div>
+    <div style="margin-top:10px">Distribuição pessoal, sem garantias. Modelo sob Apache 2.0; llama.cpp sob MIT.
+      Esta release não inclui mais a voz neural Piper/Sherpa-onnx: a síntese é feita pelo TTS do Android.</div>
   </footer>
 </div>
 </body>
